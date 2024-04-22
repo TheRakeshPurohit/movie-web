@@ -4,9 +4,9 @@ import "./stores/__old/imports";
 import "@/setup/ga";
 import "@/assets/css/index.css";
 
-import React, { Suspense, useCallback } from "react";
+import { StrictMode, Suspense, useCallback } from "react";
 import type { ReactNode } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import { BrowserRouter, HashRouter } from "react-router-dom";
@@ -15,6 +15,7 @@ import { useAsync } from "react-use";
 import { Button } from "@/components/buttons/Button";
 import { Icon, Icons } from "@/components/Icon";
 import { Loading } from "@/components/layout/Loading";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useAuthRestore } from "@/hooks/auth/useAuthRestore";
 import { useBackendUrl } from "@/hooks/auth/useBackendUrl";
 import { ErrorBoundary } from "@/pages/errors/ErrorBoundary";
@@ -22,23 +23,18 @@ import { MigrationPart } from "@/pages/parts/migrations/MigrationPart";
 import { LargeTextPart } from "@/pages/parts/util/LargeTextPart";
 import App from "@/setup/App";
 import { conf } from "@/setup/config";
-import i18n from "@/setup/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { BookmarkSyncer } from "@/stores/bookmarks/BookmarkSyncer";
-import { useLanguageStore } from "@/stores/language";
+import { changeAppLanguage, useLanguageStore } from "@/stores/language";
 import { ProgressSyncer } from "@/stores/progress/ProgressSyncer";
 import { SettingsSyncer } from "@/stores/subtitles/SettingsSyncer";
-import { useThemeStore } from "@/stores/theme";
+import { ThemeProvider } from "@/stores/theme";
+import { TurnstileProvider } from "@/stores/turnstile";
 
 import { initializeChromecast } from "./setup/chromecast";
 import { initializeOldStores } from "./stores/__old/migrations";
 
 // initialize
-const key =
-  (window as any)?.__CONFIG__?.VITE_KEY ?? import.meta.env.VITE_KEY ?? null;
-if (key) {
-  (window as any).initMW(conf().PROXY_URLS, key);
-}
 initializeChromecast();
 
 function LoadingScreen(props: { type: "user" | "lazy" }) {
@@ -57,14 +53,22 @@ function LoadingScreen(props: { type: "user" | "lazy" }) {
 function ErrorScreen(props: {
   children: ReactNode;
   showResetButton?: boolean;
+  showLogoutButton?: boolean;
 }) {
   const { t } = useTranslation();
+  const { logout } = useAuth();
   const setBackendUrl = useAuthStore((s) => s.setBackendUrl);
   const resetBackend = useCallback(() => {
     setBackendUrl(null);
     // eslint-disable-next-line no-restricted-globals
     location.reload();
   }, [setBackendUrl]);
+  const logoutFromBackend = useCallback(() => {
+    logout().then(() => {
+      // eslint-disable-next-line no-restricted-globals
+      location.reload();
+    });
+  }, [logout]);
 
   return (
     <LargeTextPart
@@ -80,6 +84,13 @@ function ErrorScreen(props: {
           </Button>
         </div>
       ) : null}
+      {props.showLogoutButton ? (
+        <div className="mt-6">
+          <Button theme="secondary" onClick={logoutFromBackend}>
+            {t("screens.loadingUserError.logout")}
+          </Button>
+        </div>
+      ) : null}
     </LargeTextPart>
   );
 }
@@ -90,14 +101,19 @@ function AuthWrapper() {
   const userBackendUrl = useBackendUrl();
   const { t } = useTranslation();
 
+  const isCustomUrl = backendUrl !== userBackendUrl;
+
   if (status.loading) return <LoadingScreen type="user" />;
   if (status.error)
     return (
-      <ErrorScreen showResetButton={backendUrl !== userBackendUrl}>
+      <ErrorScreen
+        showResetButton={isCustomUrl}
+        showLogoutButton={!isCustomUrl}
+      >
         {t(
-          backendUrl !== userBackendUrl
+          isCustomUrl
             ? "screens.loadingUserError.textWithReset"
-            : "screens.loadingUserError.text"
+            : "screens.loadingUserError.text",
         )}
       </ErrorScreen>
     );
@@ -106,7 +122,7 @@ function AuthWrapper() {
 
 function MigrationRunner() {
   const status = useAsync(async () => {
-    i18n.changeLanguage(useLanguageStore.getState().language);
+    changeAppLanguage(useLanguageStore.getState().language);
     await initializeOldStores();
   }, []);
   const { t } = useTranslation();
@@ -124,19 +140,16 @@ function TheRouter(props: { children: ReactNode }) {
   return <HashRouter>{props.children}</HashRouter>;
 }
 
-function ThemeProvider(props: { children: ReactNode }) {
-  const theme = useThemeStore((s) => s.theme);
-  const themeSelector = theme ? `theme-${theme}` : undefined;
+const container = document.getElementById("root");
+const root = createRoot(container!);
 
-  return <div className={themeSelector}>{props.children}</div>;
-}
-
-ReactDOM.render(
-  <React.StrictMode>
+root.render(
+  <StrictMode>
     <ErrorBoundary>
+      <TurnstileProvider />
       <HelmetProvider>
         <Suspense fallback={<LoadingScreen type="lazy" />}>
-          <ThemeProvider>
+          <ThemeProvider applyGlobal>
             <ProgressSyncer />
             <BookmarkSyncer />
             <SettingsSyncer />
@@ -147,6 +160,5 @@ ReactDOM.render(
         </Suspense>
       </HelmetProvider>
     </ErrorBoundary>
-  </React.StrictMode>,
-  document.getElementById("root")
+  </StrictMode>,
 );

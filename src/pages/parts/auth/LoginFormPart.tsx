@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
+import type { AsyncReturnType } from "type-fest";
 
 import { verifyValidMnemonic } from "@/backend/accounts/crypto";
 import { Button } from "@/components/buttons/Button";
@@ -37,12 +38,22 @@ export function LoginFormPart(props: LoginFormPartProps) {
       if (validatedDevice.length === 0)
         throw new Error(t("auth.login.deviceLengthError") ?? undefined);
 
-      const account = await login({
-        mnemonic: inputMnemonic,
-        userData: {
-          device: validatedDevice,
-        },
-      });
+      let account: AsyncReturnType<typeof login>;
+      try {
+        account = await login({
+          mnemonic: inputMnemonic,
+          userData: {
+            device: validatedDevice,
+          },
+        });
+      } catch (err) {
+        if ((err as any).status === 401)
+          throw new Error(t("auth.login.validationError") ?? undefined);
+        throw err;
+      }
+
+      if (!account)
+        throw new Error(t("auth.login.validationError") ?? undefined);
 
       await importData(account, progressItems, bookmarkItems);
 
@@ -50,7 +61,7 @@ export function LoginFormPart(props: LoginFormPartProps) {
 
       props.onLogin?.();
     },
-    [props, login, restore, t]
+    [props, login, restore, t],
   );
 
   return (
@@ -66,6 +77,7 @@ export function LoginFormPart(props: LoginFormPartProps) {
           name="username"
           onChange={setMnemonic}
           placeholder={t("auth.login.passphrasePlaceholder") ?? undefined}
+          passwordToggleable
         />
         <AuthInputBox
           label={t("auth.deviceNameLabel") ?? undefined}

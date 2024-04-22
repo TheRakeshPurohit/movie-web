@@ -31,10 +31,15 @@ export function PlayerPart(props: PlayerPartProps) {
       <Player.SubtitleView controlsShown={showTargets} />
 
       {status === playerStatus.PLAYING ? (
-        <Player.CenterControls>
-          <Player.LoadingSpinner />
-          <Player.AutoPlayStart />
-        </Player.CenterControls>
+        <>
+          <Player.CenterControls>
+            <Player.LoadingSpinner />
+            <Player.AutoPlayStart />
+          </Player.CenterControls>
+          <Player.CenterControls>
+            <Player.CastingNotification />
+          </Player.CenterControls>
+        </>
       ) : null}
 
       <Player.CenterMobileControls
@@ -83,7 +88,7 @@ export function PlayerPart(props: PlayerPartProps) {
             </>
           ) : null}
         </div>
-        <div className="hidden lg:flex justify-between">
+        <div className="hidden lg:flex justify-between" dir="ltr">
           <Player.LeftSideControls>
             {status === playerStatus.PLAYING ? (
               <>
@@ -116,7 +121,7 @@ export function PlayerPart(props: PlayerPartProps) {
           <div className="flex justify-center space-x-3">
             {status === playerStatus.PLAYING ? <Player.Pip /> : null}
             <Player.Episodes />
-            <Player.Settings />
+            {status === playerStatus.PLAYING ? <Player.Settings /> : null}
           </div>
           <div>
             <Player.Fullscreen />
@@ -125,6 +130,7 @@ export function PlayerPart(props: PlayerPartProps) {
       </Player.BottomControls>
 
       <Player.VolumeChangedPopout />
+
       <Player.NextEpisodeButton
         controlsShowing={showTargets}
         onChange={props.onMetaChange}

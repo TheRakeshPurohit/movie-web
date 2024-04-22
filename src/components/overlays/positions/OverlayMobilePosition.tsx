@@ -16,7 +16,7 @@ export function OverlayMobilePosition(props: MobilePositionProps) {
   return (
     <div
       className={classNames([
-        "pointer-events-auto px-4 pb-6 z-10 bottom-0 origin-top-left inset-x-0 absolute overflow-hidden max-h-[calc(100vh-1.5rem)] grid grid-rows-[minmax(0,1fr),auto]",
+        "pointer-events-auto px-4 pb-6 z-10 ml-[env(safe-area-inset-left)] mr-[env(safe-area-inset-right)] bottom-0 origin-top-left inset-x-0 absolute overflow-hidden max-h-[calc(100vh-1.5rem)] grid grid-rows-[minmax(0,1fr),auto]",
         props.className,
       ])}
     >
@@ -24,7 +24,7 @@ export function OverlayMobilePosition(props: MobilePositionProps) {
 
       {/* Close button */}
       <button
-        className="w-full text-video-context-type-main bg-video-context-background z-10 relative hover:bg-video-context-border active:scale-95 rounded-2xl pointer-events-auto transition-all duration-100 flex justify-center items-center py-3 mt-3 font-bold border border-video-context-border hover:text-white"
+        className="w-full text-video-context-type-main bg-video-context-background z-10 relative hover:bg-video-context-closeHover active:scale-95 rounded-2xl pointer-events-auto transition-all duration-100 flex justify-center items-center py-3 mt-3 font-bold border border-video-context-border hover:text-white"
         type="button"
         onClick={() => router.close()}
       >

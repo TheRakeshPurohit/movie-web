@@ -10,13 +10,13 @@ export function BlurEllipsis(props: { positionClass?: string }) {
       <div
         className={classNames(
           props.positionClass ?? "fixed",
-          "top-0 -right-48 rotate-[32deg] w-[50rem] h-[15rem] rounded-[70rem] bg-background-accentA blur-[100px] pointer-events-none opacity-25"
+          "top-0 -right-48 rotate-[32deg] w-[50rem] h-[15rem] rounded-[70rem] bg-background-accentA blur-[100px] pointer-events-none opacity-25 transition-colors duration-75",
         )}
       />
       <div
         className={classNames(
           props.positionClass ?? "fixed",
-          "top-0 right-48 rotate-[32deg] w-[50rem] h-[15rem] rounded-[70rem] bg-background-accentB blur-[100px] pointer-events-none opacity-25"
+          "top-0 right-48 rotate-[32deg] w-[50rem] h-[15rem] rounded-[70rem] bg-background-accentB blur-[100px] pointer-events-none opacity-25 transition-colors duration-75",
         )}
       />
     </>
@@ -26,7 +26,7 @@ export function BlurEllipsis(props: { positionClass?: string }) {
 export function SubPageLayout(props: { children: React.ReactNode }) {
   return (
     <div
-      className="from-[#0D0D1A] to-background-main"
+      className="bg-background-main"
       style={{
         backgroundImage:
           "linear-gradient(to bottom, var(--tw-gradient-from), var(--tw-gradient-to) 800px)",

@@ -5,6 +5,9 @@ import { playerStatus } from "@/stores/player/slices/source";
 import { ThumbnailImage } from "@/stores/player/slices/thumbnails";
 import { usePlayerStore } from "@/stores/player/store";
 import { LoadableSource, selectQuality } from "@/stores/player/utils/qualities";
+import { usePreferencesStore } from "@/stores/preferences";
+import { processCdnLink } from "@/utils/cdn";
+import { isSafari } from "@/utils/detectFeatures";
 
 function makeQueue(layers: number): number[] {
   const output = [0, 1];
@@ -39,15 +42,17 @@ class ThumnbnailWorker {
   }
 
   start(source: LoadableSource) {
+    if (isSafari) return false;
     const el = document.createElement("video");
+    el.setAttribute("muted", "true");
     const canvas = document.createElement("canvas");
     this.hls = new Hls();
     if (source.type === "mp4") {
-      el.src = source.url;
+      el.src = processCdnLink(source.url);
       el.crossOrigin = "anonymous";
     } else if (source.type === "hls") {
       this.hls.attachMedia(el);
-      this.hls.loadSource(source.url);
+      this.hls.loadSource(processCdnLink(source.url));
     } else throw new Error("Invalid loadable source type");
     this.videoEl = el;
     this.canvasEl = canvas;
@@ -78,7 +83,11 @@ class ThumnbnailWorker {
     if (!this.videoEl || !this.canvasEl) return;
     this.videoEl.currentTime = at;
     await new Promise((resolve) => {
-      this.videoEl?.addEventListener("seeked", resolve);
+      const onSeeked = () => {
+        this.videoEl?.removeEventListener("seeked", onSeeked);
+        resolve(null);
+      };
+      this.videoEl?.addEventListener("seeked", onSeeked);
     });
     if (!this.videoEl || !this.canvasEl) return;
     const ctx = this.canvasEl.getContext("2d");
@@ -88,10 +97,12 @@ class ThumnbnailWorker {
       0,
       0,
       this.canvasEl.width,
-      this.canvasEl.height
+      this.canvasEl.height,
     );
     const imgUrl = this.canvasEl.toDataURL();
+
     if (this.interrupted) return;
+    if (imgUrl === "data:," || !imgUrl) return; // failed image rendering
 
     this.cb({
       at,
@@ -118,6 +129,7 @@ export function ThumbnailScraper() {
   const resetImages = usePlayerStore((s) => s.thumbnails.resetImages);
   const meta = usePlayerStore((s) => s.meta);
   const source = usePlayerStore((s) => s.source);
+  const enableThumbnails = usePreferencesStore((s) => s.enableThumbnails);
   const workerRef = useRef<ThumnbnailWorker | null>(null);
 
   // object references dont always trigger changes, so we serialize it to detect *any* change
@@ -141,6 +153,7 @@ export function ThumbnailScraper() {
     workerRef.current = ins;
     ins.start(inputStream.stream);
   }, [source, addImage, resetImages, status]);
+
   const startRef = useRef(start);
   useEffect(() => {
     startRef.current = start;
@@ -148,8 +161,8 @@ export function ThumbnailScraper() {
 
   // start worker with the stream
   useEffect(() => {
-    startRef.current();
-  }, [sourceSeralized]);
+    if (enableThumbnails) startRef.current();
+  }, [sourceSeralized, enableThumbnails]);
 
   // destroy worker on unmount
   useEffect(() => {
@@ -172,8 +185,8 @@ export function ThumbnailScraper() {
       workerRef.current.destroy();
       workerRef.current = null;
     }
-    startRef.current();
-  }, [serializedMeta, sourceSeralized, status]);
+    if (enableThumbnails) startRef.current();
+  }, [serializedMeta, sourceSeralized, status, enableThumbnails]);
 
   return null;
 }
